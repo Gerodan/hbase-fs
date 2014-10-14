@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 public class HBaseFileTest {
     private static final Logger log = LoggerFactory.getLogger(HBaseFileTest.class);
     
-    private final String uploadPath = "/home/chunhui/github/hbase-fs/pic/";
+    private final String uploadPath = "/home/gerodan/SCWork/HBaseFS/code/hbase-fs/pic/";
     private final String outPath = uploadPath + File.separator + "out" + File.separator;
     
     public HBaseFileTest() {

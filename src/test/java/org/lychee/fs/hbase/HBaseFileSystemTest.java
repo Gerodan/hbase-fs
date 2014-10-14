@@ -33,7 +33,7 @@ public class HBaseFileSystemTest {
     
     private static final Logger log = LoggerFactory.getLogger(HBaseFileSystemTest.class);
     
-    private static HBaseFileSystem hbfs;
+    private static HBaseFileSystem hbfs; 
     
     public HBaseFileSystemTest() {
     }
