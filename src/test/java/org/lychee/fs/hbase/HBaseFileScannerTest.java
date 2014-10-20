@@ -16,12 +16,16 @@
 
 package org.lychee.fs.hbase;
 
+import java.io.IOException;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
 import static org.junit.Assert.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,13 +33,13 @@ import org.slf4j.LoggerFactory;
  *
  * @author chunhui
  */
-public class HBaseFileSystemTest {
+public class HBaseFileScannerTest {
     
-    private static final Logger log = LoggerFactory.getLogger(HBaseFileSystemTest.class);
+    private static final Logger log = LoggerFactory.getLogger(HBaseFileScannerTest.class);
     
     private static HBaseFileSystem hbfs; 
     
-    public HBaseFileSystemTest() {
+    public HBaseFileScannerTest() {
     }
     
     @BeforeClass
@@ -70,12 +74,28 @@ public class HBaseFileSystemTest {
      * Test of next method, of class HBaseFileSystem.
      */
     @Test
-    public void testNext() {
-        HBaseFileScanner scanner = hbfs.scan();
-        HBaseFile hbFile;
-        while ((hbFile = scanner.next()) != null) {
-            log.info(hbFile.toString());
-        }
+    public void getHBaseFileList() {
+    	HBaseFileResultScanAdapter scanAdapter = hbfs.scan();
+    	HBaseFile hbFile;
+    	log.info("已经存储的HBaseFile列表");
+    	Integer count=0;
+    	while ((hbFile = scanAdapter.nextOne()) != null) {
+    		log.info("文件("+(++count)+")MD5："+hbFile.toString());
+    	}
+    	log.info("共"+count+"个文件");
+    	
+    }
+    
+    @Test
+    public void getAllHBaseFiles() throws IOException {
+    	String rowKey="9ba4fd32bb4e28c0e804ed7cb43d002d";
+    	HBaseFile hbFile;
+    	HBaseFileResultScanAdapter resultAdapter = hbfs.getResultByRowKey(rowKey);
+    	hbFile=resultAdapter.adapterToHBaseFile();
+    	if(hbFile!=null){
+    	   log.info("文件MD5("+rowKey+")信息："+hbFile.toString());
+    	}
+
     }
 
     /**

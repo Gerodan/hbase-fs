@@ -33,13 +33,13 @@ import org.slf4j.LoggerFactory;
  *
  * @author chunhui
  */
-public class HBaseFileTest {
-    private static final Logger log = LoggerFactory.getLogger(HBaseFileTest.class);
+public class HBaseFileOperateTest {
+    private static final Logger log = LoggerFactory.getLogger(HBaseFileOperateTest.class);
     
     private final String uploadPath = "/home/gerodan/SCWork/HBaseFS/code/hbase-fs/pic/";
     private final String outPath = uploadPath + File.separator + "out" + File.separator;
     
-    public HBaseFileTest() {
+    public HBaseFileOperateTest() {
     }
     
     @BeforeClass
@@ -61,7 +61,7 @@ public class HBaseFileTest {
     }
 
     @Test
-    public void testHBaseFile() throws IOException {
+    public void uploadAndDownloadHBaseFiles() throws IOException {
         final File uploadFolder = new File(uploadPath);
         if (!uploadFolder.isDirectory()) {
             fail("please enter a correct dir to upload!");
@@ -72,12 +72,14 @@ public class HBaseFileTest {
         }
         for (File uploadFile : uploadFiles) {
             if (uploadFile.isFile())
-                testAHBaseFile(uploadFile);
+            	handleOneHBaseFile(uploadFile);
         }
     }
     
-    private void testAHBaseFile(File localFile) throws IOException {
+    private void handleOneHBaseFile(File localFile) throws IOException {
+    	//本地文件上传到HBase
         String identifier = HBaseFileUtils.upload(localFile);
+    	//HBase下载到本地文件
         File outFile = new File(outPath + localFile.getName());
         HBaseFileUtils.download(identifier, outFile);
     }

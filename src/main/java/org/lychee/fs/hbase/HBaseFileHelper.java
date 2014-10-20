@@ -16,6 +16,7 @@
 package org.lychee.fs.hbase;
 
 import java.io.IOException;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.KeyValue;
@@ -27,9 +28,11 @@ import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import static org.lychee.fs.hbase.HBaseFileConst.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,8 +124,55 @@ class HBaseFileHelper {
         fsTable.delete(del);
     }
 
+    /*
+     * 扫描Hbase里指定列簇的所有记录
+     */
     static ResultScanner scan() throws IOException {
         return fsTable.getScanner(CF_META);
+    }
+    
+    /*
+     * 获得Hbase里指定列簇的所有记录
+     */
+    static Result getResultByRowKey(String fileMD5) throws IOException {
+		Get get = new Get(Bytes.toBytes(fileMD5));
+	    get.addFamily(CF_META);
+	    Result result = fsTable.get(get);
+	    if (result != null && !result.isEmpty()) {
+	    	return result;
+        }
+	    else{
+	    	return null;
+	    }
+    }
+    
+    /*
+     * 遍历查询hbase表
+     * 
+     * @tableName 表名
+     */
+     static void rawGetResultScann() throws IOException {
+        Scan scan = new Scan();
+        ResultScanner rs = null;
+        try {
+            rs = fsTable.getScanner(scan);
+            for (Result r : rs) {
+                for (KeyValue kv : r.list()) {
+                    System.out.println("row:" + Bytes.toString(kv.getRow()));
+                    System.out.println("family:"
+                            + Bytes.toString(kv.getFamily()));
+                    System.out.println("qualifier:"
+                            + Bytes.toString(kv.getQualifier()));
+                    System.out
+                            .println("value:" + Bytes.toString(kv.getValue()));
+                    System.out.println("timestamp:" + kv.getTimestamp());
+                    System.out
+                            .println("-------------------------------------------");
+                }
+            }
+        } finally {
+            rs.close();
+        }
     }
 
 }

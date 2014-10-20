@@ -49,6 +49,7 @@ public class HBaseFileUtils {
         String md5 = md5Hex(localFile);
         try (InputStream is = new FileInputStream(localFile)) {
             HBaseFile hbFile = HBaseFile.Factory.buildHBaseFile(md5, localFile.getName());
+            //如果文件已经完整存在HBase中
             if (hbFile.integrity()) {
                 // do nothing. the file is already store in hbase cluster.
                 log.debug("The local file which md5 is " + md5 + ", has already been uploaded.");
@@ -57,6 +58,7 @@ public class HBaseFileUtils {
                 hbFile.delete();
                 // then reupload.
                 hbFile = HBaseFile.Factory.buildHBaseFile(md5, localFile.getName());
+                //上传实体文件流
                 try (OutputStream ops = new HBaseFileOutputStream(hbFile)) {
                     IOUtils.copy(is, ops);
                 }

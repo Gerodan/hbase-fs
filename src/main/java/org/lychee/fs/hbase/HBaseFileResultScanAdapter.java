@@ -7,7 +7,6 @@
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
@@ -33,14 +32,19 @@ import org.slf4j.LoggerFactory;
  * @author chunhui
  * @see HBaseFileSystem
  */
-public class HBaseFileScanner {
+public class HBaseFileResultScanAdapter {
 
-    private final static Logger log = LoggerFactory.getLogger(HBaseFileScanner.class);
+    private final static Logger log = LoggerFactory.getLogger(HBaseFileResultScanAdapter.class);
 
-    private final ResultScanner scanner;
+    private ResultScanner scanner;
+    private Result result;
 
-    HBaseFileScanner(ResultScanner scanner) {
-        this.scanner = scanner;
+    HBaseFileResultScanAdapter(ResultScanner scanner) {
+    	this.scanner = scanner;
+    }
+    
+    HBaseFileResultScanAdapter(Result result) {
+        this.result = result;
     }
 
     /**
@@ -56,7 +60,7 @@ public class HBaseFileScanner {
         try {
             Result[] rs;
             if ((rs = scanner.next(size)) != null) {
-                hbFiles = to(rs);
+                hbFiles = adapterTo(rs);
             } else {
                 scanner.close();
             }
@@ -66,16 +70,29 @@ public class HBaseFileScanner {
         }
         return hbFiles == null ? new ArrayList<HBaseFile>() : hbFiles;
     }
-
+    
     /**
      * scan the next *1* files.
      * 
      * @return 
      */
-    public HBaseFile next() {
-        List<HBaseFile> hbFiles = next(1);
-        return hbFiles.isEmpty() ? null : hbFiles.get(0);
+    public HBaseFile nextOne() {
+    	List<HBaseFile> hbFiles = next(1);
+    	return hbFiles.isEmpty() ? null : hbFiles.get(0);
     }
+    /**
+     * adapter to hbaseFile
+     * 
+     * @return 
+     */
+    public HBaseFile adapterToHBaseFile() {
+    	if(result==null){
+    	   return null;
+    	}
+    	HBaseFile hbFiles = adapterTo(result);
+		return hbFiles;
+    }
+
 
     /**
      * close the scanner.
@@ -84,16 +101,16 @@ public class HBaseFileScanner {
         scanner.close();
     }
 
-    private HBaseFile to(Result result) {
+    private HBaseFile adapterTo(Result result) {
         HBaseFile hbFile = new HBaseFile(Bytes.toString(result.getRow()));
         HBaseFileHelper.readMeta(result, hbFile);
         return hbFile;
     }
     
-    private List<HBaseFile> to(Result[] rs) {
+    private List<HBaseFile> adapterTo(Result[] rs) {
         List<HBaseFile> hbFiles = new ArrayList<HBaseFile>();
         for (Result r : rs)
-            hbFiles.add(to(r));
+            hbFiles.add(adapterTo(r));
         return hbFiles;
     }
 }
