@@ -132,7 +132,7 @@ class HBaseFileHelper {
     }
     
     /*
-     * 获得Hbase里指定列簇的所有记录
+     * 获得Hbase里指定行Key的一个记录
      */
     static Result getResultByRowKey(String fileMD5) throws IOException {
 		Get get = new Get(Bytes.toBytes(fileMD5));
