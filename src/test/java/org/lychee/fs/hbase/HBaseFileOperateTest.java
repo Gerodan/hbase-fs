@@ -19,13 +19,16 @@ package org.lychee.fs.hbase;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
 import static org.junit.Assert.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +39,7 @@ import org.slf4j.LoggerFactory;
 public class HBaseFileOperateTest {
     private static final Logger log = LoggerFactory.getLogger(HBaseFileOperateTest.class);
     
-    private final String uploadPath = "/home/gerodan/SCWork/HBaseFS/code/hbase-fs/pic/";
+    private final String uploadPath = "/home/gerodan/SCWork/HBaseFS/code/hbase-fs/pic";
     private final String outPath = uploadPath + File.separator + "out" + File.separator;
     
     public HBaseFileOperateTest() {
@@ -54,6 +57,7 @@ public class HBaseFileOperateTest {
     public void setUp() throws IOException {
         FileUtils.deleteDirectory(new File(outPath));
         FileUtils.forceMkdir(new File(outPath));
+    	log.info("清空并重建"+outPath+"");
     }
     
     @After
@@ -64,22 +68,39 @@ public class HBaseFileOperateTest {
     public void uploadAndDownloadHBaseFiles() throws IOException {
         final File uploadFolder = new File(uploadPath);
         if (!uploadFolder.isDirectory()) {
-            fail("please enter a correct dir to upload!");
+            fail("请设置待上传路径");
+        	log.info("请设置待上传路径");
         }
+        //获得待上传路径下所有文件
         Collection<File> uploadFiles = FileUtils.listFiles(uploadFolder, null, false);
         if (uploadFiles == null || uploadFiles.isEmpty()) {
-            fail("please enter a correct dir which has files.");
+            fail("该路径下没有文件");
+        	log.info("该路径下没有文件");
         }
+        
+        log.info("将要上传"+uploadFiles.size()+"个文件");
+        
         for (File uploadFile : uploadFiles) {
             if (uploadFile.isFile())
-            	handleOneHBaseFile(uploadFile);
+            	uploadAndDownloadOneHBaseFile(uploadFile);
         }
     }
     
-    private void handleOneHBaseFile(File localFile) throws IOException {
+    @Test
+    public void downloadHBaseFile() throws IOException {
+    	String identifier="d22616317c72bc47e1d7b14ac6d190f1";
+    	String downloadPath=outPath +"another.jpg";
+
+    	//HBase下载到本地路径
+        File outFile = new File(downloadPath);
+        HBaseFileUtils.download(identifier, outFile);
+    	log.info("下载文件到"+downloadPath);
+    }
+    
+    private void uploadAndDownloadOneHBaseFile(File localFile) throws IOException {
     	//本地文件上传到HBase
         String identifier = HBaseFileUtils.upload(localFile);
-    	//HBase下载到本地文件
+    	//HBase下载到本地路径
         File outFile = new File(outPath + localFile.getName());
         HBaseFileUtils.download(identifier, outFile);
     }

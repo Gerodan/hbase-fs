@@ -46,7 +46,7 @@ public class HBaseFileInputStream extends InputStream {
         if (cache == null) {
             cache = readCacheFromHBase();
             cursor = 0;
-            // read completed.
+            // 读不到分片了，返回-1,上层while循环判断文件读取完毕-1
             if (cache == null || cache.length == 0) return -1;
         }
         byte b = -1;
@@ -56,13 +56,11 @@ public class HBaseFileInputStream extends InputStream {
         if (cursor >= cache.length) {
             cache = null;
         }
+        
+        //byte转换int时与0xff进行与运算是为了让int的高24位清0
         return b & 0xff;
     }
     
-//    @Override
-//    public int available() throws IOException {
-//        return (int) hbFile.getSize();
-//    }
     
     private byte[] readCacheFromHBase() throws IOException {
         return HBaseFileHelper.readShard(hbFile, shard++);

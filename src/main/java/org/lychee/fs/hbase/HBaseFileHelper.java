@@ -77,8 +77,10 @@ class HBaseFileHelper {
         Get get = new Get(Bytes.toBytes(hbFile.getIdentifier()));
         get.addFamily(CF_META);
         Result result = fsTable.get(get);
+        //如果HBase已经存在，读取存储信息（状态位由存储的决定）
         if (result != null && !result.isEmpty()) {
             readMeta(result, hbFile);
+        //如果HBase已经不存在，设置状态位为新
         } else {
             hbFile.setStatus(NEW);
         }

@@ -38,7 +38,7 @@ public class HBaseFileOutputStream extends OutputStream {
     
     private byte[] cache;
     
-    private byte[] needFlush;
+    private byte[] needFlushShard;
     
     private int cursor = 0;
     private long size = 0;
@@ -53,19 +53,16 @@ public class HBaseFileOutputStream extends OutputStream {
             cache = new byte[CACHE_SIZE];
             cursor = 0;
         }
+        //int转换为byte时，强转即可
         cache[cursor++] = (byte)b;
         size++;
+        //每写满一次缓存，入库一次
         if (cursor == CACHE_SIZE) {
-            needFlush = cache;
+            needFlushShard = cache;
             cache = null;
             writeCacheToHBase();
         }
     }
-    
-//    @Override
-//    public void write(byte b[], int off, int len) throws IOException {
-//        super.write(b, off, len);
-//    }
     
     @Override
     public void flush() throws IOException {
@@ -83,12 +80,14 @@ public class HBaseFileOutputStream extends OutputStream {
             HBaseFileHelper.saveOrUpdateMeta(hbFile);
         }
         hbFile.setSize(size);
+        //分片计数
         hbFile.setShards(hbFile.getShards() + 1);
-        HBaseFileHelper.addShard(hbFile, needFlush);
+        //将文件分片实体入库
+        HBaseFileHelper.addShard(hbFile, needFlushShard);
     }
     
     private void flush0() throws IOException {
-        needFlush = Arrays.copyOf(cache, cursor);
+        needFlushShard = Arrays.copyOf(cache, cursor);
         writeCacheToHBase();
         if (!hbFile.integrity()) {
             hbFile.setStatus(HBaseFileConst.INTEGRITY);
