@@ -8,6 +8,7 @@
 		</layout>
 	</appender>
 
+	<logger name="org.apache.hadoop" level="DEBUG" />
 	<logger name="com.lychee.fs" level="DEBUG" />
 
 	<root level="DEBUG">

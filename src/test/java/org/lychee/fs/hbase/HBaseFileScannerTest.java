@@ -89,15 +89,13 @@ public class HBaseFileScannerTest {
     @Test
     public void getOneHBaseFile() throws IOException {
     	String rowKey="d22616317c72bc47e1d7b14ac6d190f1";
-    	HBaseFile hbFile;
-    	HBaseFileResultScanAdapter resultAdapter = hbfs.getResultByRowKey(rowKey);
-    	hbFile=resultAdapter.adapterToHBaseFile();
+    	//参数rowkey，如果已经上传，读到文件信息，否则返回一个新HBaseFile
+    	HBaseFile hbFile =HBaseFile.Factory.buildHBaseFile(rowKey);
     	if(hbFile!=null){
     	   log.info("文件MD5("+rowKey+")信息："+hbFile.toString());
     	}
     	else{
      	   log.info("文件MD5("+rowKey+")找不到");
-
     	}
 
     }

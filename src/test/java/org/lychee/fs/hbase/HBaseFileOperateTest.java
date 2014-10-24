@@ -19,6 +19,9 @@ package org.lychee.fs.hbase;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -90,11 +93,36 @@ public class HBaseFileOperateTest {
     public void downloadHBaseFile() throws IOException {
     	String identifier="d22616317c72bc47e1d7b14ac6d190f1";
     	String downloadPath=outPath +"another.jpg";
-
+    	
     	//HBase下载到本地路径
-        File outFile = new File(downloadPath);
-        HBaseFileUtils.download(identifier, outFile);
+    	File outFile = new File(downloadPath);
+    	HBaseFileUtils.download(identifier, outFile);
     	log.info("下载文件到"+downloadPath);
+    }
+    
+    @Test
+    public void uploadHBaseFiles() throws IOException {
+    	 final File uploadFolder = new File(uploadPath);
+         if (!uploadFolder.isDirectory()) {
+             fail("请设置待上传路径");
+         	 log.info("请设置待上传路径");
+         }
+         //获得待上传路径下所有文件
+         Collection<File> uploadFiles = FileUtils.listFiles(uploadFolder, null, false);
+         if (uploadFiles == null || uploadFiles.isEmpty()) {
+             fail("该路径下没有文件");
+         	 log.info("该路径下没有文件");
+         }
+         
+         log.info("将要上传"+uploadFiles.size()+"个文件");
+         List<Future<String>> md5List=HBaseFileUtils.upload(uploadFiles);
+         for(Future<String> thisMD5:md5List){
+        	 try {
+				log.info("上传的文件"+thisMD5.get());
+			} catch (InterruptedException | ExecutionException e) {
+				e.printStackTrace();
+			}
+         }
     }
     
     private void uploadAndDownloadOneHBaseFile(File localFile) throws IOException {

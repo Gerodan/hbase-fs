@@ -17,8 +17,6 @@
 package org.lychee.fs.hbase;
 
 import java.io.IOException;
-
-import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,23 +66,6 @@ class HBaseFileSystem {
     		log.error("Fail to scan.", ex);
     	}
     	return hrs;
-    }
-    /**
-     * 
-     * read one row by key
-     * 
-     * @return 
-     */
-    public HBaseFileResultScanAdapter getResultByRowKey(String rowKey) {
-    	HBaseFileResultScanAdapter hrs = null;
-    	try {
-			Result result=HBaseFileHelper.getResultByRowKey(rowKey);
-    		hrs = new HBaseFileResultScanAdapter(result);
-		} catch (IOException ex) {
-    		log.error("Fail to scan.", ex);
-		}
-		return hrs;
-
     }
     
     public long count() {

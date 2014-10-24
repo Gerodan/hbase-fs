@@ -37,16 +37,11 @@ public class HBaseFileResultScanAdapter {
     private final static Logger log = LoggerFactory.getLogger(HBaseFileResultScanAdapter.class);
 
     private ResultScanner scanner;
-    private Result result;
 
     HBaseFileResultScanAdapter(ResultScanner scanner) {
     	this.scanner = scanner;
     }
     
-    HBaseFileResultScanAdapter(Result result) {
-        this.result = result;
-    }
-
     /**
      * scan the next *size* files. <br/>
      * 
@@ -79,18 +74,6 @@ public class HBaseFileResultScanAdapter {
     public HBaseFile nextOne() {
     	List<HBaseFile> hbFiles = next(1);
     	return hbFiles.isEmpty() ? null : hbFiles.get(0);
-    }
-    /**
-     * adapter to hbaseFile
-     * 
-     * @return 
-     */
-    public HBaseFile adapterToHBaseFile() {
-    	if(result==null){
-    	   return null;
-    	}
-    	HBaseFile hbFiles = adapterTo(result);
-		return hbFiles;
     }
 
 
