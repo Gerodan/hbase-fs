@@ -90,7 +90,7 @@ public class HBaseFileOperateTest {
     }
     
     @Test
-    public void downloadHBaseFile() throws IOException {
+    public void downloadOneHBaseFile() throws IOException {
     	String identifier="d22616317c72bc47e1d7b14ac6d190f1";
     	String downloadPath=outPath +"another.jpg";
     	
@@ -101,6 +101,19 @@ public class HBaseFileOperateTest {
     }
     
     @Test
+    //测试整个上传和下载文件的流程，验证上传之前和下载之后的MD5是否一致
+    public void testAllUpDownload() throws IOException {
+    	//上传文件（计算MD５）
+    	
+    	//下载文件（计算MD５）
+    	
+    	//比对是否一致
+
+    	log.info("测试流程结束");
+    }
+    
+    @Test
+    //多线程上传FileList测试
     public void uploadHBaseFiles() throws IOException {
     	 final File uploadFolder = new File(uploadPath);
          if (!uploadFolder.isDirectory()) {
