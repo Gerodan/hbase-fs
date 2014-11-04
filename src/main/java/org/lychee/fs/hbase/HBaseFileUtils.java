@@ -82,18 +82,18 @@ public class HBaseFileUtils {
 	/**
 	 * 
 	 * upload local files to the hbase file system.
-	 * MultiThread
+	 * MultiThread Batch Upload
 	 * 
 	 * @param localFiles
 	 * @return the identifier of the file in the hbase file system.
 	 * @throws IOException
 	 */
-	public static List<Future<String>> upload(Collection<File> localFile) {
+	public static List<Future<String>> upload(Collection<File> localFiles) {
 		//开启过多线程可能引起性能问题，这里先设置最多5个线程
 		ExecutorService executorService = Executors.newFixedThreadPool(5);
 		List<Future<String>> md5List=new ArrayList<Future<String>>();
 
-		for (File thisFile : localFile) {
+		for (File thisFile : localFiles) {
 		     md5List.add(executorService.submit(new UploadRunnable(thisFile)));
 		}
 
