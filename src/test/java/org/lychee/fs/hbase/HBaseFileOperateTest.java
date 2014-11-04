@@ -101,15 +101,52 @@ public class HBaseFileOperateTest {
     }
     
     @Test
-    //测试整个上传和下载文件的流程，验证上传之前和下载之后的MD5是否一致
-    public void testAllUpDownload() throws IOException {
-    	//上传文件（计算MD５）
+    //文件夹单个测试，验证上传之前和下载之后的MD5是否一致
+    public void testAllUpDownload4EachFile() throws IOException {
+    	final File uploadFolder = new File(uploadPath);
+    	Collection<File> uploadFiles = FileUtils.listFiles(uploadFolder, null, false);
+    	for(File thisFile:uploadFiles){
+    		//文件原MD5
+    		String originalMD5=HBaseFileUtils.md5Hex(thisFile);
+    		//一个个上传，一个个下载，一个个验证
+    		uploadAndDownloadOneHBaseFile(thisFile);
+    		File outFile = new File(outPath + thisFile.getName());
+    		//下载文件现在MD5
+    		String downloadedFileMD5=HBaseFileUtils.md5Hex(outFile);
+    		assertTrue(originalMD5.equals(downloadedFileMD5));
+    	}
     	
-    	//下载文件（计算MD５）
-    	
-    	//比对是否一致
-
-    	log.info("测试流程结束");
+    	log.info("文件夹单个测试流程结束");
+    }
+    
+    @Test
+    //文件夹批量测试，验证上传之前和下载之后的MD5是否一致
+    public void testAllUpDownload4BatchFile() throws IOException {
+    	final File uploadFolder = new File(uploadPath);
+        Collection<File> uploadFiles = FileUtils.listFiles(uploadFolder, null, false);
+        //多线程批量上传
+        List<Future<String>> md5List=HBaseFileUtils.upload(uploadFiles);
+        
+        //批量上传，一个个下载，一个个验证
+        for(Future<String> thisOriginalMD5:md5List){
+        	try {
+				HBaseFile thisFile=HBaseFile.Factory.buildHBaseFile(thisOriginalMD5.get());
+				String downloadPath=outPath +thisFile.getDesc();
+		    	//HBase下载到本地路径
+		    	File outFile = new File(downloadPath);
+		    	HBaseFileUtils.download(thisFile.getIdentifier(), outFile);	
+		    	
+	    		//下载文件现在MD5
+		    	String downloadedFileMD5=HBaseFileUtils.md5Hex(outFile);
+		    	System.out.println(downloadedFileMD5+" VS "+thisOriginalMD5.get());
+	    		assertTrue(thisOriginalMD5.get().equals(downloadedFileMD5));
+		    	} 
+        	catch (Exception e) {
+				e.printStackTrace();
+			}
+        }
+       
+    	log.info("文件夹批量测试流程结束");
     }
     
     @Test

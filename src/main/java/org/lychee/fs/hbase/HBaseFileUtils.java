@@ -125,7 +125,7 @@ public class HBaseFileUtils {
 		}
 	}
 
-	private static String md5Hex(File file) throws IOException {
+	public static String md5Hex(File file) throws IOException {
 		String md5;
 		try (InputStream is = new FileInputStream(file)) {
 			md5 = DigestUtils.md5Hex(is);
