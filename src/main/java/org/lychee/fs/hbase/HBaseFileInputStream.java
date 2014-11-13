@@ -19,7 +19,11 @@ package org.lychee.fs.hbase;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,33 +43,50 @@ import org.slf4j.LoggerFactory;
  * @see HBaseFileOutputStream
  */
 public class HBaseFileInputStream extends InputStream {
+	private static final Logger log = LoggerFactory.getLogger(HBaseFileInputStream.class);
     
     private final HBaseFile hbFile;
-    private int shard = 1;
+    //缓冲区的已读游标
+    private int cacheReadedIndex = 1;
+    //文件已读游标
+    private int shardsCursor = 0;
+    //文件总分块数
+    private int fileTotalShardsNum = 1;
     
     private List<byte[]> continuousCache;
     private byte[] cache;
     private int cursor;
+    private int preReadNum=2;
+    private boolean isFirst;
     
     public HBaseFileInputStream(HBaseFile hbFile) {
         this.hbFile = hbFile;
-        toReadAllCache();
+        this.isFirst=true;
+        this.fileTotalShardsNum=hbFile.getShards();
     }
 
     @Override
     public int read() throws IOException {
-    	//缓冲区没有数据了
+    	//第一次读取初始化变量
+    	if(isFirst){
+    	   initRead();
+    	   isFirst=false;
+    	}
+    	
+    	//缓冲区没有数据
         if (cache == null) {
-        	if(continuousCache!=null&&continuousCache.size()>0){
-        		int shardIndex=shard++;
-        		if(shardIndex<=continuousCache.size()){
-        		   cache=continuousCache.get(shardIndex-1);
-        		}
-         	}else{
-               cache = readCacheFromHBase();
-         	}
-        	// 读不到分片了，返回-1,上层while循环判断文件读取完毕-1
+        	cursor = 0;
+        	//每次多线程读取N个数据块
+        	toPreReadShard();
+        	if(shardsCursor<this.fileTotalShardsNum){
+        	   cache=this.continuousCache.get(shardsCursor++);
+        	}
+
+        	//读不到分片了，返回-1,上层while循环判断文件读取完毕-1
             if (cache == null || cache.length == 0) return -1;
+       
+            //读到文件之后，把已经读取过的文件流置为空，释放内存资源
+        	volatileTheReadedCache();
         }
         
         //每次从缓冲区取一个字节
@@ -82,59 +103,76 @@ public class HBaseFileInputStream extends InputStream {
     }
     
     
-    /*
-     * 第一次读取的时候，另外起一个线程预读取整个文件流
+    private void volatileTheReadedCache() {
+    	this.continuousCache.set(shardsCursor-1, null);		
+	}
+
+	/*
+     * 每次预读取一些数据流块
      */
-    private void toReadAllCache() {
-    	ExecutorService executorService = Executors.newFixedThreadPool(2);
+    private void toPreReadShard() {
+    	ExecutorService executorService = Executors.newFixedThreadPool(getThreadNum(preReadNum));
 		try{
-			this.continuousCache=executorService.submit(new ReadCacheRunnable(hbFile)).get();
+			HashMap<Integer,Future<byte[]>> futureMap=new HashMap<Integer,Future<byte[]>>();
+			
+			//分发任务
+			for(int shardEnd=cacheReadedIndex+preReadNum;cacheReadedIndex<=fileTotalShardsNum&&cacheReadedIndex<shardEnd;cacheReadedIndex++){
+				futureMap.put(cacheReadedIndex,executorService.submit(new ReadCacheRunnable(hbFile,cacheReadedIndex)));
+			}
+			
+			Iterator<Entry<Integer, Future<byte[]>>> iter = futureMap.entrySet().iterator(); 
+			while (iter.hasNext()) { 
+			    Map.Entry<Integer, Future<byte[]>> entry = (Map.Entry<Integer, Future<byte[]>>) iter.next(); 
+			    int index = entry.getKey(); 
+			    if(entry.getValue()!=null){
+			       byte[] thisShardContents = entry.getValue().get(); 
+			       this.continuousCache.set(index-1, thisShardContents);
+			    }
+			} 
+			
 		}
 		catch (Exception e) {
 			e.printStackTrace();
+			log.info(e.toString());
 		}
 	}
 
-    //每次读完一个缓冲区之后，再读满一个缓冲区
-	private byte[] readCacheFromHBase() throws IOException {
-    	return HBaseFileHelper.readShard(hbFile, shard++);
+    private int getThreadNum(int preReadNum) {
+    	return preReadNum>=5?5:preReadNum;
     }
     
-}
-
-/*
- * 新线程读取文件流
- */
-class ReadCacheRunnable implements Callable<List<byte[]>> {
-	private static final Logger log = LoggerFactory.getLogger(ReadCacheRunnable.class);
-
-	private final HBaseFile hbFile;
-    private int shardIndex = 1;
-    
-    private List<byte[]> thisShardByteList;
-    private byte[] thisShardByte;
-
-	public ReadCacheRunnable(HBaseFile thisFile) {
-		super();
-		this.hbFile = thisFile;
-		thisShardByteList=new ArrayList<byte[]>();
+    private void initRead() {
+    	this.continuousCache=new ArrayList<byte[]>();
+    	for(int i=0;i<hbFile.getShards();i++){
+    		this.continuousCache.add(i, null);
+    	}
 	}
+	
+	
+	/*
+	 * 新线程读取文件流
+	 */
+	private class ReadCacheRunnable implements Callable<byte[]> {
+		private final HBaseFile hbFile;
+	    private int shardIndex;
+	    
+	    private byte[] thisShardByte;
 
-	public List<byte[]> call() {
-		try {
-			do{
-				thisShardByte=HBaseFileHelper.readShard(hbFile, shardIndex++);
-				if(thisShardByte!=null&&thisShardByte.length > 0){
-				   thisShardByteList.add(thisShardByte);
-				}
-			}
-			while(thisShardByte == null || thisShardByte.length == 0);
-			
-		} catch (IOException e) {
-			log.error(e.toString());
-			e.printStackTrace();
+		public ReadCacheRunnable(HBaseFile thisFile,int shardIndex) {
+			super();
+			this.hbFile = thisFile;
+			this.shardIndex = shardIndex;
 		}
-		
-		return thisShardByteList;
+
+		public byte[] call() {
+			try {
+				thisShardByte=HBaseFileHelper.readShard(hbFile, shardIndex);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return thisShardByte;
+		}
 	}
+
 }
+
