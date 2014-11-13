@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 chunhui.
+ * Copyright 2014 gerodan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package org.lychee.fs.hbase;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * 
  * Read a hbase file.like a common inputstream.
  * 
- * @author chunhui
+ * @author gerodan
  * @see HBaseFile
  * @see HBaseFileOutputStream
  */
@@ -56,17 +56,36 @@ public class HBaseFileInputStream extends InputStream {
     private List<byte[]> continuousCache;
     private byte[] cache;
     private int cursor;
-    private int preReadNum=2;
     private boolean isFirst;
     
+    //预读取数据块数目（可配置）
+    private int preReadNum=2;
+    //触发下次缓冲区去读取文件的间隔阈值（可配置）
+    private int approachingThreshold=2;
+    
     public HBaseFileInputStream(HBaseFile hbFile) {
+    	this.hbFile = hbFile;
+    	this.isFirst=true;
+    	this.fileTotalShardsNum=hbFile.getShards();
+    }
+    
+    /**
+     * @author gerodan
+     * @param hbFile(build via HBaseFile)
+     * @param preReadNum(the number of shards to pre read)
+     * @param toReadThreshold(the threshold of a interval which is between readed shards and cached shards)
+     * @see HBaseFile
+     */
+    public HBaseFileInputStream(HBaseFile hbFile,int preReadNum,int toReadThreshold) {
         this.hbFile = hbFile;
         this.isFirst=true;
         this.fileTotalShardsNum=hbFile.getShards();
+        this.preReadNum=preReadNum;
+        this.approachingThreshold=toReadThreshold;
     }
 
     @Override
-    public int read() throws IOException {
+    public int read(){
     	//第一次读取初始化变量
     	if(isFirst){
     	   initRead();
@@ -76,8 +95,18 @@ public class HBaseFileInputStream extends InputStream {
     	//缓冲区没有数据
         if (cache == null) {
         	cursor = 0;
+        	
         	//每次多线程读取N个数据块
-        	toPreReadShard();
+        	try {
+        		if(isApproaching()){
+        		   toPreReadShard();
+        	}
+				
+			} catch (InterruptedException e) {
+				log.error(e.toString());
+			} catch (ExecutionException e) {
+				log.error(e.toString());
+			}
         	if(shardsCursor<this.fileTotalShardsNum){
         	   cache=this.continuousCache.get(shardsCursor++);
         	}
@@ -102,45 +131,53 @@ public class HBaseFileInputStream extends InputStream {
         return b & 0xff;
     }
     
-    
+    /**
+     * 已经读取的数据块是否在逼近缓冲区的数据块
+     */
+    private boolean isApproaching() {
+		return cacheReadedIndex-shardsCursor<approachingThreshold;
+	}
+
+	/**
+     * 将读取过的文件流置为空以释放内存
+     */
     private void volatileTheReadedCache() {
     	this.continuousCache.set(shardsCursor-1, null);		
 	}
 
-	/*
-     * 每次预读取一些数据流块
+    /**
+     * 每次预读取Ｎ个数据流块
      */
-    private void toPreReadShard() {
+    private void toPreReadShard() throws InterruptedException, ExecutionException  {
     	ExecutorService executorService = Executors.newFixedThreadPool(getThreadNum(preReadNum));
-		try{
-			HashMap<Integer,Future<byte[]>> futureMap=new HashMap<Integer,Future<byte[]>>();
-			
-			//分发任务
-			for(int shardEnd=cacheReadedIndex+preReadNum;cacheReadedIndex<=fileTotalShardsNum&&cacheReadedIndex<shardEnd;cacheReadedIndex++){
-				futureMap.put(cacheReadedIndex,executorService.submit(new ReadCacheRunnable(hbFile,cacheReadedIndex)));
-			}
-			
-			Iterator<Entry<Integer, Future<byte[]>>> iter = futureMap.entrySet().iterator(); 
-			while (iter.hasNext()) { 
-			    Map.Entry<Integer, Future<byte[]>> entry = (Map.Entry<Integer, Future<byte[]>>) iter.next(); 
-			    int index = entry.getKey(); 
-			    if(entry.getValue()!=null){
-			       byte[] thisShardContents = entry.getValue().get(); 
-			       this.continuousCache.set(index-1, thisShardContents);
-			    }
-			} 
-			
+		HashMap<Integer,Future<byte[]>> futureMap=new HashMap<Integer,Future<byte[]>>();
+		
+		//分发任务
+		for(int shardEnd=cacheReadedIndex+preReadNum;cacheReadedIndex<=fileTotalShardsNum&&cacheReadedIndex<shardEnd;cacheReadedIndex++){
+			futureMap.put(cacheReadedIndex,executorService.submit(new ReadCacheRunnable(hbFile,cacheReadedIndex)));
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			log.info(e.toString());
-		}
+		
+		Iterator<Entry<Integer, Future<byte[]>>> iter = futureMap.entrySet().iterator(); 
+		while (iter.hasNext()) { 
+		    Map.Entry<Integer, Future<byte[]>> entry = (Map.Entry<Integer, Future<byte[]>>) iter.next(); 
+		    int index = entry.getKey(); 
+		    if(entry.getValue()!=null){
+		       byte[] thisShardContents = entry.getValue().get(); 
+		       this.continuousCache.set(index-1, thisShardContents);
+		    }
+		} 
 	}
 
+    /**
+     * 根据＂预读取数＂确定线程数
+     */
     private int getThreadNum(int preReadNum) {
     	return preReadNum>=5?5:preReadNum;
     }
     
+    /**
+     * 第一次进入read()初始化参数
+     */
     private void initRead() {
     	this.continuousCache=new ArrayList<byte[]>();
     	for(int i=0;i<hbFile.getShards();i++){
@@ -148,10 +185,9 @@ public class HBaseFileInputStream extends InputStream {
     	}
 	}
 	
-	
-	/*
-	 * 新线程读取文件流
-	 */
+    /**
+     * 新线程读取文件流
+     */
 	private class ReadCacheRunnable implements Callable<byte[]> {
 		private final HBaseFile hbFile;
 	    private int shardIndex;
@@ -164,12 +200,8 @@ public class HBaseFileInputStream extends InputStream {
 			this.shardIndex = shardIndex;
 		}
 
-		public byte[] call() {
-			try {
-				thisShardByte=HBaseFileHelper.readShard(hbFile, shardIndex);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		public byte[] call() throws Exception{
+			thisShardByte=HBaseFileHelper.readShard(hbFile, shardIndex);
 			return thisShardByte;
 		}
 	}
