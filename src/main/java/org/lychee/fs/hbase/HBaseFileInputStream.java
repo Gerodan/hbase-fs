@@ -206,5 +206,26 @@ public class HBaseFileInputStream extends InputStream {
 		}
 	}
 
+    /**
+　　　　* 可配置参数的Get/Set方法，提供配置接口
+　　　　*/
+	public int getPreReadNum() {
+		return preReadNum;
+	}
+
+	public void setPreReadNum(int preReadNum) {
+		this.preReadNum = preReadNum;
+	}
+
+	public int getApproachingThreshold() {
+		return approachingThreshold;
+	}
+
+	public void setApproachingThreshold(int approachingThreshold) {
+		this.approachingThreshold = approachingThreshold;
+	}
+	
+	
+
 }
 
