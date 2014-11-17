@@ -101,7 +101,7 @@ public class HBaseFileOperateTest {
     }
     
     @Test
-    //文件夹单个测试，验证上传之前和下载之后的MD5是否一致
+    //文件夹数个文件测试，验证上传之前和下载之后的MD5是否一致
     public void testAllUpDownload4EachFile() throws IOException {
     	final File uploadFolder = new File(uploadPath);
     	Collection<File> uploadFiles = FileUtils.listFiles(uploadFolder, null, false);
@@ -111,12 +111,12 @@ public class HBaseFileOperateTest {
     		//一个个上传，一个个下载，一个个验证
     		uploadAndDownloadOneHBaseFile(thisFile);
     		File outFile = new File(outPath + thisFile.getName());
-    		//下载文件现在MD5
+    		//下载文件现在的MD5
     		String downloadedFileMD5=HBaseFileUtils.md5Hex(outFile);
     		assertTrue(originalMD5.equals(downloadedFileMD5));
     	}
     	
-    	log.info("文件夹单个测试流程结束");
+    	log.info("文件夹数个文件测试流程结束");
     }
     
     @Test
@@ -178,6 +178,7 @@ public class HBaseFileOperateTest {
     private void uploadAndDownloadOneHBaseFile(File localFile) throws IOException {
     	//本地文件上传到HBase
         String identifier = HBaseFileUtils.upload(localFile);
+        log.info("文件上传完成，下面开始下载");
     	//HBase下载到本地路径
         File outFile = new File(outPath + localFile.getName());
         HBaseFileUtils.download(identifier, outFile);
