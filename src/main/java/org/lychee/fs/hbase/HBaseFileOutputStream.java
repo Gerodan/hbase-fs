@@ -20,13 +20,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,9 +60,12 @@ public class HBaseFileOutputStream extends OutputStream {
     
     private long size = 0;
     
+    private int startShardCursor=0;
+
+    
     public HBaseFileOutputStream(HBaseFile hbFile) {
         this.hbFile = hbFile;
-        this.needFlushShardList=new ArrayList<byte[]>(cachePollNum);
+        this.needFlushShardList= Collections.synchronizedList(new ArrayList<byte[]>());
     }
     
     @Override
@@ -90,30 +93,38 @@ public class HBaseFileOutputStream extends OutputStream {
      */
     private void writeCacheListToHBase() {
     	ExecutorService executorService = Executors.newFixedThreadPool(getThreadNum(cachePollNum));
-		ArrayList<Future<String>> futureList=new ArrayList<Future<String>>();
+		ArrayList<Future<Boolean>> futureList=new ArrayList<Future<Boolean>>();
 		
-		//分发任务
-		for(int startShardCursor=hbFile.getShards(),endShard=startShardCursor+cachePollNum;(startShardCursor<endShard&&startShardCursor<needFlushShardList.size());startShardCursor++){
-		   byte[] thisShardByte=needFlushShardList.get(startShardCursor);
-			
-		    //futureList.add(executorService.submit(new WriteCacheRunnable(thisShardByte)));
-			
-			//单线程版本(可以)
-			needFlushShard=thisShardByte;
-			try {
-				writeCacheToHBase();
-			} catch (IOException e) {
+    	//分发任务
+		for(int endShard=startShardCursor+cachePollNum;(startShardCursor<endShard&&startShardCursor<needFlushShardList.size());startShardCursor++){
+		    byte[] thisShardByte=needFlushShardList.get(startShardCursor);
+		    futureList.add(executorService.submit(new WriteCacheRunnable(thisShardByte)));
+		    log.info(startShardCursor+"-----RUNNING...");
+		   /* try {
+				Thread.currentThread().sleep(500);
+			} catch (InterruptedException e) {
 				e.printStackTrace();
-			}
+			}*/
 		}
 		
-		 
+		//为保证当前线程池里面所有任务执行完成,调用get()保证完成
+		for(Future<Boolean> thisFuture:futureList){
+			try {
+				log.info("每个任务是否完成?:"+thisFuture.get().toString());
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			} catch (ExecutionException e) {
+				e.printStackTrace();
+			}
+			
+		}
+		
 	}
     
     /**
      * 单线程写任务
      */
-    private synchronized void writeCacheToHBase() throws IOException {
+    private synchronized void writeCacheToHBase(byte[] thisNeedFlushShard) throws IOException {
         if (hbFile.isNew()) {
             hbFile.setStatus(HBaseFileConst.TRANSIT);
             HBaseFileHelper.saveOrUpdateMeta(hbFile);
@@ -122,7 +133,7 @@ public class HBaseFileOutputStream extends OutputStream {
         //分片计数（下标从１开始算）
         hbFile.setShards(hbFile.getShards() + 1);
         //将文件分片实体入库
-        HBaseFileHelper.addShard(hbFile, needFlushShard);
+        HBaseFileHelper.addShard(hbFile, thisNeedFlushShard);
     }
     
     /**
@@ -148,13 +159,13 @@ public class HBaseFileOutputStream extends OutputStream {
      */
     private void flush0() throws IOException {
     	//1/2写入List中的剩余部分
-    	for(int startShardCursor=hbFile.getShards();startShardCursor<needFlushShardList.size();startShardCursor++){
+    	for(;startShardCursor<needFlushShardList.size();startShardCursor++){
     		needFlushShard=needFlushShardList.get(startShardCursor);
-    		writeCacheToHBase();
+    		writeCacheToHBase(needFlushShard);
     	}
     	//2/2写入cache中的剩余部分
         needFlushShard = Arrays.copyOf(cache, cursor);
-        writeCacheToHBase();
+        writeCacheToHBase(needFlushShard);
         if (!hbFile.integrity()) {
             hbFile.setStatus(HBaseFileConst.INTEGRITY);
             HBaseFileHelper.saveOrUpdateMeta(hbFile);
@@ -165,39 +176,28 @@ public class HBaseFileOutputStream extends OutputStream {
     /**
      * 新线程写出文件流
      */
-	private class WriteCacheRunnable implements Callable<String> {
-		private String isUploadComplete="no";
-	    private byte[] thisShardByte;
+	private class WriteCacheRunnable implements Callable<Boolean> {
+		private byte[] thisShardByte;
+	    private Boolean isCompleted;
 
 		public WriteCacheRunnable(byte[] thisShardByte) {
-			super();
-			this.thisShardByte = thisShardByte;
+			super();this.
+			thisShardByte = thisShardByte;
+			isCompleted = false;
 		}
 
 		@Override
-		public String call(){
-		  if (hbFile.isNew()) {
-	            hbFile.setStatus(HBaseFileConst.TRANSIT);
-	            try {
-					HBaseFileHelper.saveOrUpdateMeta(hbFile);
-				} catch (IOException e) {
-					e.printStackTrace();
-					log.error(e.toString());
-				}
-	        }
-	        hbFile.setSize(size);
-	        //分片计数（下标从１开始算）
-	        hbFile.setShards(hbFile.getShards() + 1);
-	        //将文件分片实体入库
-	        try {
-				HBaseFileHelper.addShard(hbFile, thisShardByte);
-				isUploadComplete="yes";
+		public Boolean call() throws Exception {
+			try {
+				needFlushShard=thisShardByte;
+				writeCacheToHBase(thisShardByte);
+				isCompleted=true;
 			} catch (IOException e) {
 				e.printStackTrace();
-				log.error(e.toString());
 			}
-			return isUploadComplete;
+			return isCompleted;
 			
 		}
+
 	}
 }
