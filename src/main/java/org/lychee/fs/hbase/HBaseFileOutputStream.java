@@ -23,10 +23,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,30 +95,30 @@ public class HBaseFileOutputStream extends OutputStream {
      */
     private void writeCacheListToHBase() {
     	ExecutorService executorService = Executors.newFixedThreadPool(getThreadNum(cachePollNum));
-		ArrayList<Future<Boolean>> futureList=new ArrayList<Future<Boolean>>();
-		
-    	//分发任务
+        CompletionService<Boolean> completionService = new ExecutorCompletionService<Boolean>(executorService);  
+
+        //分发任务
 		for(int endShard=startShardCursor+cachePollNum;(startShardCursor<endShard&&startShardCursor<needFlushShardList.size());startShardCursor++){
 		    byte[] thisShardByte=needFlushShardList.get(startShardCursor);
-		    futureList.add(executorService.submit(new WriteCacheRunnable(thisShardByte)));
-		    log.info(startShardCursor+"-----RUNNING...");
-		   /* try {
-				Thread.currentThread().sleep(500);
+		    completionService.submit(new WriteCacheRunnable(thisShardByte));
+		    log.info(hbFile.getDesc()+startShardCursor+"-----上传RUNNING...");
+		
+		    try {
+				Thread.sleep(500);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
-			}*/
+			}
 		}
 		
-		//为保证当前线程池里面所有任务执行完成,调用get()保证完成
-		for(Future<Boolean> thisFuture:futureList){
+		for(int i=0;i<cachePollNum;i++){
 			try {
-				log.info("每个任务是否完成?:"+thisFuture.get().toString());
+				log.info(hbFile.getDesc()+"任务是否完成?:"+completionService.take().get());
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			} catch (ExecutionException e) {
 				e.printStackTrace();
 			}
-			
+			 
 		}
 		
 	}

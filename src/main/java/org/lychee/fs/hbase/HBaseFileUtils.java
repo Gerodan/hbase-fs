@@ -62,8 +62,7 @@ public class HBaseFileUtils {
 					localFile.getName());
 			// 如果文件已经完整存在HBase中，是否完整作为标记符记录在HBase的列簇中一列(不再调用HBaseFileOutputStream)
 			if (hbFile.integrity()) {
-				log.debug("文件MD5是 " + md5 + ", 已经存在，无需上传");
-				hbFile.delete();
+				log.debug(localFile.getName() + ", 已经存在HBase，无需上传");
 			} else {
 				// 如果不完整，先删除
 				hbFile.delete();

@@ -106,7 +106,6 @@ public class HBaseFileScannerTest {
     @Test
     public void testCount() {
         System.out.println("count");
-        // TODO has not been impl.
     }
     
 }

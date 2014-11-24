@@ -20,18 +20,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import static org.junit.Assert.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,40 +63,6 @@ public class HBaseFileOperateTest {
     public void tearDown() {
     }
 
-    @Test
-    public void uploadAndDownloadHBaseFiles() throws IOException {
-        final File uploadFolder = new File(uploadPath);
-        if (!uploadFolder.isDirectory()) {
-            fail("请设置待上传路径");
-        	log.info("请设置待上传路径");
-        }
-        //获得待上传路径下所有文件
-        Collection<File> uploadFiles = FileUtils.listFiles(uploadFolder, null, false);
-        if (uploadFiles == null || uploadFiles.isEmpty()) {
-            fail("该路径下没有文件");
-        	log.info("该路径下没有文件");
-        }
-        
-        log.info("将要上传"+uploadFiles.size()+"个文件");
-        
-        for (File uploadFile : uploadFiles) {
-            if (uploadFile.isFile())
-            	uploadAndDownloadOneHBaseFile(uploadFile);
-        }
-    }
-    
-    @Test
-    public void downloadOneHBaseFile() throws IOException {
-    	String identifier="d22616317c72bc47e1d7b14ac6d190f1";
-    	String downloadPath=outPath +"another.jpg";
-    	
-    	//HBase下载到本地路径
-    	File outFile = new File(downloadPath);
-    	HBaseFileUtils.download(identifier, outFile);
-    	log.info("下载文件到"+downloadPath);
-    }
-    
-    @Test
     //文件夹数个文件测试，验证上传之前和下载之后的MD5是否一致
     public void testAllUpDownload4EachFile() throws IOException {
     	final File uploadFolder = new File(uploadPath);
@@ -114,12 +76,30 @@ public class HBaseFileOperateTest {
     		//下载文件现在的MD5
     		String downloadedFileMD5=HBaseFileUtils.md5Hex(outFile);
     		assertTrue(originalMD5.equals(downloadedFileMD5));
+            log.info(thisFile.getName()+"---文件验证OK!!!!!!!!!!!!!!!");
     	}
     	
     	log.info("文件夹数个文件测试流程结束");
     }
     
-    @Test
+    //将文件夹下的文件,全部在HBase上删除
+    public void hbaseFilesDel() throws IOException {
+        final File uploadFolder = new File(uploadPath);
+        Collection<File> uploadFiles = FileUtils.listFiles(uploadFolder, null, false);
+      
+        for(File thisFile:uploadFiles){
+    		//待删除文件的MD5
+	    	String needDeleteFileMD5=HBaseFileUtils.md5Hex(thisFile);
+	    	HBaseFile needDeleteFile=HBaseFile.Factory.buildHBaseFile(needDeleteFileMD5);
+        
+	    	if (needDeleteFile.exists()){
+	    		needDeleteFile.delete();
+	        	log.info(thisFile.getName()+"在HBase上删除成功");
+	    	}
+        }
+    	log.info("HBase上删除上传路径下的所有文件成功");
+    }
+    
     //文件夹批量测试，验证上传之前和下载之后的MD5是否一致
     public void testAllUpDownload4BatchFile() throws IOException {
     	final File uploadFolder = new File(uploadPath);
@@ -149,44 +129,28 @@ public class HBaseFileOperateTest {
     	log.info("文件夹批量测试流程结束");
     }
     
-    @Test
-    //多线程上传FileList测试
-    public void uploadHBaseFiles() throws IOException {
-    	 final File uploadFolder = new File(uploadPath);
-         if (!uploadFolder.isDirectory()) {
-             fail("请设置待上传路径");
-         	 log.info("请设置待上传路径");
-         }
-         //获得待上传路径下所有文件
-         Collection<File> uploadFiles = FileUtils.listFiles(uploadFolder, null, false);
-         if (uploadFiles == null || uploadFiles.isEmpty()) {
-             fail("该路径下没有文件");
-         	 log.info("该路径下没有文件");
-         }
-         
-         log.info("将要上传"+uploadFiles.size()+"个文件");
-         List<Future<String>> md5List=HBaseFileUtils.upload(uploadFiles);
-         for(Future<String> thisMD5:md5List){
-        	 try {
-				log.info("上传的文件"+thisMD5.get());
-			} catch (InterruptedException | ExecutionException e) {
-				e.printStackTrace();
-			}
-         }
-    }
-    
     private void uploadAndDownloadOneHBaseFile(File localFile) throws IOException {
     	//本地文件上传到HBase
         String identifier = HBaseFileUtils.upload(localFile);
-        log.info("文件上传完成，下面开始下载");
+        log.info(localFile.getName()+"---文件上传完成，下面开始下载");
     	//HBase下载到本地路径
         File outFile = new File(outPath + localFile.getName());
         HBaseFileUtils.download(identifier, outFile);
+        log.info(localFile.getName()+"---文件下载完成");
     }
     
-    private void testDel(HBaseFile hbFile) throws IOException {
-        if (hbFile.exists())
-            hbFile.delete();
+    @Test
+    //测试先删除Hbase上文件,再上传,再下载
+    public void testAllManyTimes() throws Exception {
+    	//测试次数
+    	int testTimes=1;
+    	
+    	for(int i=0;i<testTimes;i++){
+    		hbaseFilesDel();
+    		testAllUpDownload4EachFile();;
+        	//testAllUpDownload4BatchFile();
+    	}
+    
     }
     
 }
