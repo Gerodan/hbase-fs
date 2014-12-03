@@ -30,6 +30,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static org.lychee.fs.hbase.HBaseFileConst.*;
 
 /**
  *
@@ -84,6 +85,7 @@ public class HBaseFileOperateTest {
     
     //将文件夹下的文件,全部在HBase上删除
     public void hbaseFilesDel() throws IOException {
+    	log.info("测试前先在HBase上删除待上传的文件");
         final File uploadFolder = new File(uploadPath);
         Collection<File> uploadFiles = FileUtils.listFiles(uploadFolder, null, false);
       
@@ -131,8 +133,17 @@ public class HBaseFileOperateTest {
     
     private void uploadAndDownloadOneHBaseFile(File localFile) throws IOException {
     	//本地文件上传到HBase
-        String identifier = HBaseFileUtils.upload(localFile);
-        log.info(localFile.getName()+"---文件上传完成，下面开始下载");
+    	String identifier="";
+        String uploadInfo = HBaseFileUtils.upload(localFile);
+        //文件上传前检测已经存在HBase
+        if(uploadInfo.startsWith(file_exists_prefix)){
+        	log.info(uploadInfo);
+        	identifier=uploadInfo.split(division_symbol)[1];
+        }
+        else{
+        	identifier=uploadInfo;
+        }
+        log.info(localFile.getName()+"---文件已经存在HBase，下面开始下载");
     	//HBase下载到本地路径
         File outFile = new File(outPath + localFile.getName());
         HBaseFileUtils.download(identifier, outFile);
@@ -146,6 +157,7 @@ public class HBaseFileOperateTest {
     	int testTimes=1;
     	
     	for(int i=0;i<testTimes;i++){
+    		//先全部在Hbase上删除
     		hbaseFilesDel();
     		testAllUpDownload4EachFile();;
         	//testAllUpDownload4BatchFile();

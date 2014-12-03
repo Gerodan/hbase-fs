@@ -29,7 +29,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
+import static org.lychee.fs.hbase.HBaseFileConst.*;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -52,7 +52,7 @@ public class HBaseFileUtils {
 	 * upload local file to the hbase file system.
 	 * 
 	 * @param localFile
-	 * @return the identifier of the file in the hbase file system.
+	 * @return the info of the upload result.exists return info;not exists return md5
 	 * @throws IOException
 	 */
 	public static String upload(File localFile) throws IOException {
@@ -63,6 +63,7 @@ public class HBaseFileUtils {
 			// 如果文件已经完整存在HBase中，是否完整作为标记符记录在HBase的列簇中一列(不再调用HBaseFileOutputStream)
 			if (hbFile.integrity()) {
 				log.debug(localFile.getName() + ", 已经存在HBase，无需上传");
+				return file_exists_prefix+division_symbol+md5+division_symbol+localFile.getName() + " 已经存在HBase，无需上传";
 			} else {
 				// 如果不完整，先删除
 				hbFile.delete();
@@ -73,9 +74,9 @@ public class HBaseFileUtils {
 				try (OutputStream ops = new HBaseFileOutputStream(hbFile)) {
 					IOUtils.copy(is, ops);
 				}
+				return md5;
 			}
 		}
-		return md5;
 	}
 
 	/**

@@ -71,5 +71,9 @@ class HBaseFileConst {
      * are in order of the file bytes.
      */
     final static byte[] CF_SHARDS = Bytes.toBytes("s");
+    
+    final static String file_exists_prefix = "DOHave:_";
+    
+    final static String division_symbol = "###";
 
 }
