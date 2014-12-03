@@ -32,13 +32,13 @@ import org.slf4j.LoggerFactory;
  * @author chunhui
  * @see HBaseFileSystem
  */
-public class HBaseFileResultScanAdapter {
+public class HBaseFileResultAdapter {
 
-    private final static Logger log = LoggerFactory.getLogger(HBaseFileResultScanAdapter.class);
+    private final static Logger log = LoggerFactory.getLogger(HBaseFileResultAdapter.class);
 
     private ResultScanner scanner;
 
-    HBaseFileResultScanAdapter(ResultScanner scanner) {
+    HBaseFileResultAdapter(ResultScanner scanner) {
     	this.scanner = scanner;
     }
     
