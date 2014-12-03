@@ -75,7 +75,7 @@ public class HBaseFileScannerTest {
      */
     @Test
     public void getHBaseFileList() {
-    	HBaseFileResultScanAdapter scanAdapter = hbfs.scan();
+    	HBaseFileResultAdapter scanAdapter = hbfs.scan();
     	HBaseFile hbFile;
     	log.info("已经存储的HBaseFile列表");
     	Integer count=0;

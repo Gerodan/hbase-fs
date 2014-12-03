@@ -57,11 +57,11 @@ public class HBaseFileSystem {
      * 
      * @return 
      */
-    public HBaseFileResultScanAdapter scan() {
-    	HBaseFileResultScanAdapter hrs = null;
+    public HBaseFileResultAdapter scan() {
+    	HBaseFileResultAdapter hrs = null;
     	try {
     		ResultScanner rs = HBaseAPIWrapper.scan();
-    		hrs = new HBaseFileResultScanAdapter(rs);
+    		hrs = new HBaseFileResultAdapter(rs);
     	} catch (IOException ex) {
     		log.error("Fail to scan.", ex);
     	}
