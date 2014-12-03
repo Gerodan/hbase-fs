@@ -86,7 +86,7 @@ public class HBaseFileResultScanAdapter {
 
     private HBaseFile adapterTo(Result result) {
         HBaseFile hbFile = new HBaseFile(Bytes.toString(result.getRow()));
-        HBaseFileHelper.readMeta(result, hbFile);
+        HBaseAPIWrapper.readMeta(result, hbFile);
         return hbFile;
     }
     

@@ -211,7 +211,7 @@ public class HBaseFileInputStream extends InputStream {
 		}
 
 		public byte[] call() throws Exception{
-			thisShardByte=HBaseFileHelper.readShard(hbFile, shardIndex);
+			thisShardByte=HBaseAPIWrapper.readShard(hbFile, shardIndex);
 			return thisShardByte;
 		}
 	}

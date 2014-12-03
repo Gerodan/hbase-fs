@@ -84,7 +84,7 @@ public class HBaseFile {
                 hbFile.setDesc(desc);
             }
             try {
-                HBaseFileHelper.readMeta(hbFile);
+                HBaseAPIWrapper.readMeta(hbFile);
             } catch (IOException ex) {
                 log.error("Fail to read HBase file from hbase cluster.", ex);
             }
@@ -106,7 +106,7 @@ public class HBaseFile {
 
     public void delete() throws IOException {
         if (exists()) {
-            HBaseFileHelper.delete(this);
+            HBaseAPIWrapper.delete(this);
         }
     }
 

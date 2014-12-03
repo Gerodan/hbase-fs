@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * @author chunhui
  * @see HBaseFile
  */
-class HBaseFileSystem {
+public class HBaseFileSystem {
     
     private final static Logger log = LoggerFactory.getLogger(HBaseFileSystem.class);
     private static HBaseFileSystem fs;
@@ -60,7 +60,7 @@ class HBaseFileSystem {
     public HBaseFileResultScanAdapter scan() {
     	HBaseFileResultScanAdapter hrs = null;
     	try {
-    		ResultScanner rs = HBaseFileHelper.scan();
+    		ResultScanner rs = HBaseAPIWrapper.scan();
     		hrs = new HBaseFileResultScanAdapter(rs);
     	} catch (IOException ex) {
     		log.error("Fail to scan.", ex);

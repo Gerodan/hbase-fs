@@ -129,13 +129,13 @@ public class HBaseFileOutputStream extends OutputStream {
     private synchronized void writeCacheToHBase(byte[] thisNeedFlushShard) throws IOException {
         if (hbFile.isNew()) {
             hbFile.setStatus(HBaseFileConst.TRANSIT);
-            HBaseFileHelper.saveOrUpdateMeta(hbFile);
+            HBaseAPIWrapper.saveOrUpdateMeta(hbFile);
         }
         hbFile.setSize(size);
         //分片计数（下标从１开始算）
         hbFile.setShards(hbFile.getShards() + 1);
         //将文件分片实体入库
-        HBaseFileHelper.addShard(hbFile, thisNeedFlushShard);
+        HBaseAPIWrapper.addShard(hbFile, thisNeedFlushShard);
     }
     
     /**
@@ -170,7 +170,7 @@ public class HBaseFileOutputStream extends OutputStream {
         writeCacheToHBase(needFlushShard);
         if (!hbFile.integrity()) {
             hbFile.setStatus(HBaseFileConst.INTEGRITY);
-            HBaseFileHelper.saveOrUpdateMeta(hbFile);
+            HBaseAPIWrapper.saveOrUpdateMeta(hbFile);
         }
     }
     
