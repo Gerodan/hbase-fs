@@ -56,21 +56,36 @@ public class HBaseFileOutputStream extends OutputStream {
     
     private List<byte[]> needFlushShardList;
     
-    private int cachePollNum = 2;
-    
     private int cursor = 0;
     
     private long size = 0;
     
     private int startShardCursor=0;
-
+    
+    private ExecutorService threadPoll;
+    private CompletionService<Boolean> completionService;
+    
+    //缓存池大小（可配置）
+    private int cachePollNum = 2;
     
     public HBaseFileOutputStream(HBaseFile hbFile) {
         this.hbFile = hbFile;
         this.needFlushShardList= Collections.synchronizedList(new ArrayList<byte[]>());
+        //初始化线程池,单例
+        initPara();
     }
     
-    @Override
+    /**
+     * 初始化线程池,单例
+     */
+    private void initPara() {
+    	if(threadPoll==null){
+    	   threadPoll = Executors.newFixedThreadPool(getThreadNum(cachePollNum));
+           completionService = new ExecutorCompletionService<Boolean>(threadPoll); 
+    	}
+	}
+
+	@Override
     public void write(int b) throws IOException {
         if (cache == null) {
             cache = new byte[CACHE_SIZE];
@@ -94,9 +109,6 @@ public class HBaseFileOutputStream extends OutputStream {
      * 多线程分发写任务
      */
     private void writeCacheListToHBase() {
-    	ExecutorService executorService = Executors.newFixedThreadPool(getThreadNum(cachePollNum));
-        CompletionService<Boolean> completionService = new ExecutorCompletionService<Boolean>(executorService);  
-
         //分发任务
 		for(int endShard=startShardCursor+cachePollNum;(startShardCursor<endShard&&startShardCursor<needFlushShardList.size());startShardCursor++){
 		    byte[] thisShardByte=needFlushShardList.get(startShardCursor);
@@ -104,21 +116,12 @@ public class HBaseFileOutputStream extends OutputStream {
 		    log.info(hbFile.getDesc()+startShardCursor+"-----上传RUNNING...");
 		
 		    try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		for(int i=0;i<cachePollNum;i++){
-			try {
-				log.info(hbFile.getDesc()+"任务是否完成?:"+completionService.take().get());
+				log.info(hbFile.getDesc()+"分片上传是否完成?:"+completionService.take().get());
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			} catch (ExecutionException e) {
 				e.printStackTrace();
 			}
-			 
 		}
 		
 	}
@@ -191,7 +194,7 @@ public class HBaseFileOutputStream extends OutputStream {
 		@Override
 		public Boolean call() throws Exception {
 			try {
-				needFlushShard=thisShardByte;
+				//needFlushShard=thisShardByte;
 				writeCacheToHBase(thisShardByte);
 				isCompleted=true;
 			} catch (IOException e) {
