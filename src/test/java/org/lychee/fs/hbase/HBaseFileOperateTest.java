@@ -134,7 +134,11 @@ public class HBaseFileOperateTest {
     private void uploadAndDownloadOneHBaseFile(File localFile) throws IOException {
     	//本地文件上传到HBase
     	String identifier="";
+        Long startUploadTime=System.currentTimeMillis();
+        log.info(localFile.getName()+"---文件开始上传");
         String uploadInfo = HBaseFileUtils.upload(localFile);
+        Long endUploadTime=System.currentTimeMillis();
+        log.info(localFile.getName()+"---上传耗时:"+(endUploadTime-startUploadTime)+"毫秒");
         //文件上传前检测已经存在HBase
         if(uploadInfo.startsWith(file_exists_prefix)){
         	log.info(uploadInfo);
@@ -158,11 +162,11 @@ public class HBaseFileOperateTest {
     //测试先删除Hbase上文件,再上传,再下载
     public void testAllManyTimes() throws Exception {
     	//测试次数
-    	int testTimes=1;
+    	int testTimes=3;
     	
     	for(int i=0;i<testTimes;i++){
     		//先全部在Hbase上删除
-    		//hbaseFilesDel();
+    		hbaseFilesDel();
     		testAllUpDownload4EachFile();;
         	//testAllUpDownload4BatchFile();
     	}

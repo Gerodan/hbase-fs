@@ -58,6 +58,10 @@ public class HBaseFileInputStream extends InputStream {
     private int cursor;
     private boolean isFirst;
     
+    //线程池为单例
+    private ExecutorService threadPoll;
+    private HashMap<Integer,Future<byte[]>> futureMap;
+    
     //预读取数据块数目（可配置）
     private int preReadNum=4;
     //触发下次缓冲区去读取文件的间隔阈值（可配置）
@@ -91,7 +95,7 @@ public class HBaseFileInputStream extends InputStream {
     	   if(isNotValidatePara()){
     		  throw new IllegalArgumentException("approachingThreshold过小 或者 preReadNum与approachingThreshold的差过小");
     	   }
-    	   initRead();
+    	   initPara();
     	   isFirst=false;
     	}
     	
@@ -159,12 +163,9 @@ public class HBaseFileInputStream extends InputStream {
      * 每次预读取Ｎ个数据流块
      */
     private void toPreReadShard() throws InterruptedException, ExecutionException  {
-    	ExecutorService executorService = Executors.newFixedThreadPool(getThreadNum(preReadNum));
-		HashMap<Integer,Future<byte[]>> futureMap=new HashMap<Integer,Future<byte[]>>();
-		
 		//分发任务
 		for(int shardEnd=cacheReadedIndex+preReadNum;cacheReadedIndex<=fileTotalShardsNum&&cacheReadedIndex<shardEnd;cacheReadedIndex++){
-			futureMap.put(cacheReadedIndex,executorService.submit(new ReadCacheRunnable(hbFile,cacheReadedIndex)));
+			futureMap.put(cacheReadedIndex,threadPoll.submit(new ReadCacheRunnable(hbFile,cacheReadedIndex)));
 		}
 		
 		Iterator<Entry<Integer, Future<byte[]>>> iter = futureMap.entrySet().iterator(); 
@@ -188,11 +189,17 @@ public class HBaseFileInputStream extends InputStream {
     /**
      * 第一次进入read()初始化参数
      */
-    private void initRead() {
+    private void initPara() {
     	this.continuousCache=new ArrayList<byte[]>();
     	for(int i=0;i<hbFile.getShards();i++){
     		this.continuousCache.add(i, null);
     	}
+    	
+    	if(threadPoll==null){
+    	   threadPoll = Executors.newFixedThreadPool(getThreadNum(preReadNum));
+    	   futureMap=new HashMap<Integer,Future<byte[]>>();
+    	}
+        
 	}
 	
     /**
