@@ -144,10 +144,14 @@ public class HBaseFileOperateTest {
         	identifier=uploadInfo;
         }
         log.info(localFile.getName()+"---文件已经存在HBase，下面开始下载");
+        log.info(localFile.getName()+"---下载计时开始...");
+        Long startTime=System.currentTimeMillis();
     	//HBase下载到本地路径
         File outFile = new File(outPath + localFile.getName());
         HBaseFileUtils.download(identifier, outFile);
         log.info(localFile.getName()+"---文件下载完成");
+        Long endTime=System.currentTimeMillis();
+        log.info(localFile.getName()+"---下载耗时:"+(endTime-startTime)+"毫秒");
     }
     
     @Test
@@ -158,7 +162,7 @@ public class HBaseFileOperateTest {
     	
     	for(int i=0;i<testTimes;i++){
     		//先全部在Hbase上删除
-    		hbaseFilesDel();
+    		//hbaseFilesDel();
     		testAllUpDownload4EachFile();;
         	//testAllUpDownload4BatchFile();
     	}

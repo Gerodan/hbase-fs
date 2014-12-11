@@ -59,7 +59,7 @@ public class HBaseFileInputStream extends InputStream {
     private boolean isFirst;
     
     //预读取数据块数目（可配置）
-    private int preReadNum=2;
+    private int preReadNum=4;
     //触发下次缓冲区去读取文件的间隔阈值（可配置）
     private int approachingThreshold=2;
     
@@ -138,7 +138,7 @@ public class HBaseFileInputStream extends InputStream {
      * 判断用户配置的参数是否合法
      */
     private boolean isNotValidatePara() {
-    	return (this.approachingThreshold<=1||(this.preReadNum-this.approachingThreshold)<0);
+    	return (this.approachingThreshold<1||(this.preReadNum-this.approachingThreshold)<0);
 	}
 
 	/**
